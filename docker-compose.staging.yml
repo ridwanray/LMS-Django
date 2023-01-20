@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  api: &api
+    build:
+      context: .
+      dockerfile: docker/prod/Dockerfile
+    image: ray/lms-staging-api
+    command: gunicorn --bind 0.0.0.0:10080 core.asgi -w 4 -k uvicorn.workers.UvicornWorker --reload
+    volumes:
+      - ./app:/app
+    ports:
+      - "10080:10080"
+    env_file:
+      - ./.env
+    restart: unless-stopped
+
+  redis:
+    image: bitnami/redis:latest
+    ports:
+      - "6371:6379"
+    env_file:
+      - ./.env
+
+  celery:
+    <<: *api
+    command: celery -A core worker --loglevel=info --logfile=logs/celery.log
+    ports: [ ]
+    volumes:
+      - ./app:/app
+    env_file:
+      - ./.env
+    depends_on:
+      - api
+
+  celery-beat:
+    <<: *api
+    command: celery -A core beat -l info
+    ports: [ ]
+    volumes:
+      - ./app:/app
+    env_file:
+      - ./.env
+    depends_on:
+      - celery
+
+  dashboard:
+    <<: *api
+    command: celery --broker=${REDIS_URL} flower --port=5555
+    ports:
+      - "5555:5555"
+    env_file:
+      - ./.env
+    depends_on:
+      - api
+      - celery

@@ -1,0 +1,23 @@
+from dataclasses import dataclass
+
+USER_ROLE = (
+    ("STUDENT", "STUDENT"),
+    ("TEACHER", "TEACHER"),
+    ("SCHOOL_ADMIN", "SCHOOL_ADMIN"),
+    ("SUPER_ADMIN", "SUPER_ADMIN"),
+    
+)
+
+GENDER_OPTION = (("MALE", "MALE"), ("FEMALE", "FEMALE"))
+
+TOKEN_TYPE = (
+    ('ACCOUNT_VERIFICATION', 'ACCOUNT_VERIFICATION'),
+    ('PASSWORD_RESET', 'PASSWORD_RESET'),
+)
+
+
+@dataclass
+class TokenTypeClass:
+
+    ACCOUNT_VERIFICATION = "ACCOUNT_VERIFICATION"
+    PASSWORD_RESET = "PASSWORD_RESET"

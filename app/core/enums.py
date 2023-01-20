@@ -1,0 +1,4 @@
+COURSE_PAYMENT_STATUS = (
+    ("SUCCESS", "SUCCESS"),
+    ("FAILURE", "FAILURE"),
+)
