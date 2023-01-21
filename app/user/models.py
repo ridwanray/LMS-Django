@@ -30,7 +30,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         size=4,
     )
     is_staff = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     last_login = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -60,9 +60,7 @@ class Token(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
                              on_delete=models.CASCADE)
     token = models.CharField(max_length=255, null=True)
-    token_type = models.CharField(
-        max_length=100, choices=TOKEN_TYPE, default="ACCOUNT_VERIFICATION"
-    )
+    token_type = models.CharField(max_length=100, choices=TOKEN_TYPE)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -79,6 +77,7 @@ class Token(models.Model):
 
     def verify_user(self)-> None:
         self.user.verified = True
+        self.user.is_active = True
         self.user.save()
 
     def generate(self) -> None:

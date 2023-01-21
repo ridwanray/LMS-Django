@@ -15,7 +15,6 @@ class CustomBackend(ModelBackend):
             if username is None or password is None:
                 return None
             if user := UserModel.objects.filter(Q(email__iexact=username)).first():
-                 
                 if user.failed_password_attempts > config('MAX_LOGIN_ATTEMPTS', cast=int):
                     raise exceptions.ValidationError(
                                 {"email": "Account locked - Maximum number of login attempts reached."}

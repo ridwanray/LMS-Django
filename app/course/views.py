@@ -212,8 +212,7 @@ class ModuleViewSets(viewsets.ModelViewSet):
                 }
             ),
         },
-    )
-    
+    ) 
     @action(methods=['PUT'], detail=False, serializer_class=BulkUpdateMarkAsCompletedSerializer, url_path="mark-complete")
     def bulk_update_complete_status(self, request, pk=None):
         """Allows a user  to mark multiple modules as completed & undo"""

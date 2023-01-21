@@ -6,7 +6,7 @@ from ..views import CustomObtainTokenPairView, AuthViewsets, PasswordChangeView,
 
 app_name = "auth"
 router = DefaultRouter()
-router.register("", AuthViewsets,  basename="password-reset-initiate")
+router.register("", AuthViewsets,  basename="auth")
 router.register("change-password", PasswordChangeView, basename="password-change")
 
 urlpatterns = [
@@ -15,7 +15,5 @@ urlpatterns = [
     path("token/verify/", TokenVerifyView.as_view(), name="verify-token"),
     path("", include(router.urls)),
 ]
-
-
 
 

@@ -28,9 +28,8 @@ def create_token_and_send_user_email(user: User, token_type: str)->None:
         },
     )
     user_data = {
-        "id": user.id,
         "email": user.email,
-        "fullname": f"{user.lastname} {user.firstname}",
+        "fullname": f"{user.firstname}",
         "token": token.token
     }
     send_user_creation_email.delay(user_data)

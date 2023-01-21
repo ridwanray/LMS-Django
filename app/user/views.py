@@ -9,13 +9,15 @@ from django.utils.crypto import get_random_string
 from user.models import User,Token
 from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework import viewsets, status
-from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import viewsets, status,  serializers
+from django_filters.rest_framework import DjangoFilterBackend 
+from core.utils.validators import is_admin
 from .tasks import send_password_reset_email
 from .serializers import (
-    CustomObtainTokenPairSerializer, EmailSerializer,CreatePasswordFromTokenSerializer,
-    PasswordChangeSerializer,AuthTokenSerializer,ListUserSerializer,CreateUserSerializer)
-from .permissions import IsStudent, IsSuperAdmin, IsTeacher
+    CustomObtainTokenPairSerializer, EmailSerializer,CreatePasswordFromTokenSerializer,UpdateUserSerializer,
+    PasswordChangeSerializer,AuthTokenSerializer,ListUserSerializer,CreateUserSerializer, TokenDecodeSerializer)
+from .permissions import IsStudent, IsSuperAdmin, IsTeacher, IsSchoolAdmin
 from .utils import create_token_and_send_user_email
 from .enums import TokenTypeClass
 
@@ -33,7 +35,7 @@ class AuthViewsets(viewsets.GenericViewSet):
     
     def get_permissions(self):
         permission_classes = self.permission_classes
-        if self.action in ["initiate_password_reset", "create_password"]:
+        if self.action in ["initiate_password_reset", "create_password","verify_account"]:
             permission_classes = [AllowAny]
         return [permission() for permission in permission_classes]
 
@@ -75,14 +77,42 @@ class AuthViewsets(viewsets.GenericViewSet):
         """Create a new password given the reset token"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        token: Token = Token.objects.filter(token=request.data['token']).first()
+        token: Token = Token.objects.filter(token=request.data['token'],  token_type=TokenTypeClass.PASSWORD_RESET).first()
         if not token or not token.is_valid():
             return Response({'success': False, 'errors': 'Invalid token specified'}, status=400)
-        token.reset_user_password(request.data['password'])
+        token.reset_user_password(request.data['new_password'])
         token.delete()
         return Response({'success': True, 'message': 'Password successfully reset'}, status=status.HTTP_200_OK)
 
-
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name='AccountVerificationStatus',
+                fields={
+                    "success": serializers.BooleanField(default=True),
+                    "message": serializers.CharField(default="Acount Verification Successful")
+                }
+            ),
+        },
+    )
+    @action(
+        methods=["POST"],
+        detail=False,
+        serializer_class=TokenDecodeSerializer,
+        url_path="verify-account",
+    )
+    def verify_account(self, request, pk=None):
+        """Activate a user acount using the token send to the user"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token: Token = Token.objects.filter(token=request.data['token'],  token_type=TokenTypeClass.ACCOUNT_VERIFICATION).first()
+        if not token or not token.is_valid():
+            return Response({'success': False, 'errors': 'Invalid token specified'}, status=400)
+        token.verify_user()
+        token.delete()
+        return Response({"success": True, "message": "Acount Verification Successful"},status=200)
+   
+   
 class PasswordChangeView(viewsets.GenericViewSet):
     '''Allows password change to authenticated user.'''
     serializer_class = PasswordChangeSerializer
@@ -122,6 +152,7 @@ class CreateTokenView(ObtainAuthToken):
 class UserViewsets(viewsets.ModelViewSet):
     queryset = get_user_model().objects.all()
     serializer_class = ListUserSerializer
+    permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "patch", "delete"]
     filter_backends = [
         DjangoFilterBackend,
@@ -140,32 +171,32 @@ class UserViewsets(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        user_role = self.request.user.roles
-        if "SUPER_ADMIN" in user_role:
-            return self.queryset.all()
-        elif "TEACHER" in user_role:
-            return self.queryset.filter(roles__in = ["STUDENT"])
-        elif "STUDENT" in user_role:
-            return self.queryset.filter(user = self.request.user)
-        return get_user_model().objects.none()
+        user: User = self.request.user
+        if is_admin(user):
+            return self.queryset.all()           
+        return self.queryset.filter(email = user.email)
 
     def get_serializer_class(self):
         if self.action == "create":
             return CreateUserSerializer
+        if self.action in ["partial_update","update"]:
+            return UpdateUserSerializer
         return super().get_serializer_class()
 
     def get_permissions(self):
         permission_classes = self.permission_classes
         if self.action in ["create","reinvite_user"]:
             permission_classes = [AllowAny]
-        elif self.action in ["destroy", "partial_update","update"]:
+        elif self.action in ["list","retrieve", "partial_update","update"]:
             permission_classes = [IsAuthenticated]
+        elif self.action in ["destroy"]:
+            permission_classes = [IsSuperAdmin | IsSchoolAdmin]
         return [permission() for permission in permission_classes]
 
     def _reinvite_check(self, request):
         email: str  = request.data["email"].lower().strip()
         user: User = get_object_or_404(User, email=email)
-        if user.verified and user.is_locked:
+        if user.verified:
             return None
         else: 
             return user
@@ -182,6 +213,6 @@ class UserViewsets(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         user = self._reinvite_check(request)
         if not user:
-           return Response({"success": False, "message": "User already accepted confirmation"},status.HTTP_400_BAD_REQUEST)
-        create_token_and_send_user_email(user =user, token=TokenTypeClass.ACCOUNT_VERIFICATION )
-        return Response({"success":True, "message":"Mail sent successfully"},status.HTTP_200_OK)
+           return Response({"success": False, "message": "User already verified"},status.HTTP_400_BAD_REQUEST)
+        create_token_and_send_user_email(user =user, token_type=TokenTypeClass.ACCOUNT_VERIFICATION )
+        return Response({"success":True, "message":"Verification mail sent successfully."},status.HTTP_200_OK)
