@@ -3,9 +3,11 @@ from rest_framework.test import APIClient
 from django.urls import reverse
 from pytest_factoryboy import register
 from user.tests.factories import (
-    UserFactory,
+    UserFactory, TokenFactory
 )
+
 register(UserFactory)
+register(TokenFactory)
 
 @pytest.fixture
 def api_client():

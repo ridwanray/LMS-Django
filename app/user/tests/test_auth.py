@@ -10,12 +10,13 @@ import time_machine
 pytestmark = pytest.mark.django_db
 
 
-class TestPasswordEndpoints:
+class TestAuthEndpoints:
     initiate_password_reset_url = reverse(
-        'auth:password-reset-initiate-initiate-password-reset')
+        'auth:auth-initiate-password-reset')
     password_change_url = reverse('auth:password-change-list')
     
     login_url = reverse("auth:login")
+    verify_account_url = reverse("auth:auth-verify-account")
     
     def test_user_login(self,api_client,active_user):
         data = {
@@ -108,6 +109,32 @@ class TestPasswordEndpoints:
         response = api_client.post(
             self.password_change_url, data, format="json")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    
+    def test_verify_account_using_verification_token(self, api_client,user_factory, token_factory):
+        unverified_user = user_factory(verified = False, is_active = False)
+        verification_token: Token  = token_factory(user = unverified_user, token_type=TokenTypeClass.ACCOUNT_VERIFICATION)
+        request_payload = {'token':verification_token.token}
+        response = api_client.post(self.verify_account_url, request_payload)
+        assert response.status_code == 200
+        unverified_user.refresh_from_db()
+        assert unverified_user.verified == True
+        assert unverified_user.is_active == True
+    
+    def test_deny_verify_using_invalid_token(self, api_client,user_factory):
+        unverified_user = user_factory(verified = False, is_active = False)
+        token = "sampletoken" 
+        request_payload = {'token':token}
+        response = api_client.post(self.verify_account_url, request_payload)
+        assert response.status_code == 400
+        unverified_user.refresh_from_db()
+        assert unverified_user.verified == False
+        assert unverified_user.is_active == False
+    
+    def test_create_password_using_valid_reset_token():
+        pass
+    
+    
+
 
 
 class TestAuthSessionSecurity:
@@ -138,7 +165,6 @@ class TestAuthSessionSecurity:
 
         for _ in range(0, 6):
             api_client.post(url, data, format='json')
-            print("post me", _ + 1)
         active_user.refresh_from_db()
         assert active_user.is_active == False
 

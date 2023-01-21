@@ -125,20 +125,23 @@ class CreateUserSerializer(serializers.ModelSerializer):
             "phone",
             "image",
             "roles",
-            "last_login",
-            "created_at",
         )
         extra_kwargs = {
             "password": {"write_only": True, "min_length": 5},
             "last_login": {"read_only": True},
+            "verified":{"read_only": True},
+            "firstname": {"required": True},
+            "lastname": {"required": True},
+            "roles":{"required": True},
         }
 
-    def validate_role(self, roles : list) -> None:
+    def validate_roles(self, roles : list) -> None:
         allowable_roles : list[str]= ["STUDENT", "TEACHER"]
         valid : bool = all(role in allowable_roles for role in roles)
         if not valid:
-            raise serializers.ValidationError("Roles can only be Student or Teacher")
-            
+            raise serializers.ValidationError("Roles can only be STUDENT or TEACHER")
+        return roles
+    
     def validate(self, attrs):
         email = attrs.get("email", None)
         if email:
@@ -148,9 +151,11 @@ class CreateUserSerializer(serializers.ModelSerializer):
         return super().validate(attrs)
 
     def create(self, validated_data):
+        #print("first validated", validated_data)
         validated_data["password"] = make_password(validated_data["password"])
+        #print("validated", validated_data)
         user = User.objects.create_app_user(**validated_data)
-        return user
+        return user 
 
     def update(self, instance, validated_data):
         instance = super().update(instance, validated_data)
