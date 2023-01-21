@@ -79,7 +79,7 @@ class AuthViewsets(viewsets.GenericViewSet):
         token: Token = Token.objects.filter(token=request.data['token'],  token_type=TokenTypeClass.PASSWORD_RESET).first()
         if not token or not token.is_valid():
             return Response({'success': False, 'errors': 'Invalid token specified'}, status=400)
-        token.reset_user_password(request.data['password'])
+        token.reset_user_password(request.data['new_password'])
         token.delete()
         return Response({'success': True, 'message': 'Password successfully reset'}, status=status.HTTP_200_OK)
 

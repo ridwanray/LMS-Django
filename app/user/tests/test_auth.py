@@ -17,12 +17,14 @@ class TestAuthEndpoints:
     
     login_url = reverse("auth:login")
     verify_account_url = reverse("auth:auth-verify-account")
+    create_password_via_reset_token_url = reverse("auth:auth-create-password")
     
     def test_user_login(self,api_client,active_user):
         data = {
             "email": active_user.email,
             "password": "my@pass@access"}
         response = api_client.post(self.login_url, data)
+        print(response.json())
         assert response.status_code == status.HTTP_200_OK
         returned_json = response.json()
         assert 'refresh'  in returned_json
@@ -130,13 +132,28 @@ class TestAuthEndpoints:
         assert unverified_user.verified == False
         assert unverified_user.is_active == False
     
-    def test_create_password_using_valid_reset_token():
-        pass
+    def test_create_new_password_using_valid_reset_token(self, api_client,active_user, token_factory):
+        token : Token  = token_factory(user = active_user, token_type=TokenTypeClass.PASSWORD_RESET)
+        data = {
+            "token":token.token,
+            "new_password":"new_pass_me"
+        }
+        response = api_client.post(self.create_password_via_reset_token_url, data)
+        assert response.status_code == 200
+        active_user.refresh_from_db()
+        assert active_user.check_password('new_pass_me')
+        
+    def test_deny_create_new_password_using_invalid_reset_token(self, api_client,active_user, token_factory):
+        #token type set as account verification
+        token : Token  = token_factory(token_type=TokenTypeClass.ACCOUNT_VERIFICATION,user = active_user)
+        data = {
+            "token":token.token,
+            "new_password":"new_pass_me"
+        }
+        response = api_client.post(self.create_password_via_reset_token_url, data)
+        assert response.status_code == 400
     
     
-
-
-
 class TestAuthSessionSecurity:
     verity_token_url = reverse('auth:verify-token')
 

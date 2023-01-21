@@ -15,7 +15,7 @@ def api_client():
 
 @pytest.fixture
 def active_user(db, user_factory):
-    return user_factory.create()
+    return user_factory.create(is_active=True)
 
 @pytest.fixture
 def inactive_user(db, user_factory):

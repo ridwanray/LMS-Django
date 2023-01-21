@@ -76,7 +76,7 @@ class PasswordChangeSerializer(serializers.Serializer):
 
 class CreatePasswordFromTokenSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
-    password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
 
 
 class TokenDecodeSerializer(serializers.Serializer):
