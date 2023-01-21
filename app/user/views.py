@@ -11,12 +11,13 @@ from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.views import ObtainAuthToken
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import viewsets, status,  serializers
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters.rest_framework import DjangoFilterBackend 
+from core.utils.validators import is_admin
 from .tasks import send_password_reset_email
 from .serializers import (
-    CustomObtainTokenPairSerializer, EmailSerializer,CreatePasswordFromTokenSerializer,
+    CustomObtainTokenPairSerializer, EmailSerializer,CreatePasswordFromTokenSerializer,UpdateUserSerializer,
     PasswordChangeSerializer,AuthTokenSerializer,ListUserSerializer,CreateUserSerializer, TokenDecodeSerializer)
-from .permissions import IsStudent, IsSuperAdmin, IsTeacher
+from .permissions import IsStudent, IsSuperAdmin, IsTeacher, IsSchoolAdmin
 from .utils import create_token_and_send_user_email
 from .enums import TokenTypeClass
 
@@ -151,6 +152,7 @@ class CreateTokenView(ObtainAuthToken):
 class UserViewsets(viewsets.ModelViewSet):
     queryset = get_user_model().objects.all()
     serializer_class = ListUserSerializer
+    permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "patch", "delete"]
     filter_backends = [
         DjangoFilterBackend,
@@ -169,26 +171,26 @@ class UserViewsets(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        user_role = self.request.user.roles
-        if "SUPER_ADMIN" in user_role:
-            return self.queryset.all()
-        elif "TEACHER" in user_role:
-            return self.queryset.filter(roles__in = ["STUDENT"])
-        elif "STUDENT" in user_role:
-            return self.queryset.filter(user = self.request.user)
-        return get_user_model().objects.none()
+        user: User = self.request.user
+        if is_admin(user):
+            return self.queryset.all()           
+        return self.queryset.filter(email = user.email)
 
     def get_serializer_class(self):
         if self.action == "create":
             return CreateUserSerializer
+        if self.action in ["partial_update","update"]:
+            return UpdateUserSerializer
         return super().get_serializer_class()
 
     def get_permissions(self):
         permission_classes = self.permission_classes
         if self.action in ["create","reinvite_user"]:
             permission_classes = [AllowAny]
-        elif self.action in ["destroy", "partial_update","update"]:
+        elif self.action in ["list","retrieve", "partial_update","update"]:
             permission_classes = [IsAuthenticated]
+        elif self.action in ["destroy"]:
+            permission_classes = [IsSuperAdmin | IsSchoolAdmin]
         return [permission() for permission in permission_classes]
 
     def _reinvite_check(self, request):

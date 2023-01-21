@@ -5,7 +5,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers, exceptions
-from .models import  User
+from core.utils.validators import is_admin
+from .models import User
 from django.conf import settings
 
 
@@ -25,7 +26,8 @@ class CustomObtainTokenPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         if not user.verified:
-            raise exceptions.AuthenticationFailed(_('Account not verified.'), code='authentication')
+            raise exceptions.AuthenticationFailed(
+                _('Account not verified.'), code='authentication')
         token = super().get_token(user)
         token.id = user.id
         token['firstname'] = user.firstname
@@ -41,21 +43,23 @@ class AuthTokenSerializer(serializers.Serializer):
     """Serializer for user authentication object"""
 
     email = serializers.CharField()
-    password = serializers.CharField(style={"input_type": "password"}, trim_whitespace=False)
+    password = serializers.CharField(
+        style={"input_type": "password"}, trim_whitespace=False)
 
     def validate(self, attrs):
         """Validate and authenticate the user"""
         email = attrs.get("email")
         password = attrs.get("password")
         if email:
-            user = authenticate(request=self.context.get("request"), username=email.lower().strip(), password=password)
+            user = authenticate(request=self.context.get(
+                "request"), username=email.lower().strip(), password=password)
 
         if not user:
             msg = _("Unable to authenticate with provided credentials")
             raise serializers.ValidationError(msg, code="authentication")
         attrs["user"] = user
         return attrs
-    
+
 
 class PasswordChangeSerializer(serializers.Serializer):
     old_password = serializers.CharField(max_length=128, required=False)
@@ -74,6 +78,7 @@ class PasswordChangeSerializer(serializers.Serializer):
         user.set_password(new_password)
         user.save(update_fields=["password"])
 
+
 class CreatePasswordFromTokenSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
@@ -85,6 +90,7 @@ class TokenDecodeSerializer(serializers.Serializer):
 
 class EmailSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
+
 
 class ListUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -100,7 +106,40 @@ class ListUserSerializer(serializers.ModelSerializer):
             "last_login",
             "created_at",
         ]
-        
+
+        extra_kwargs = {
+            "roles": {"read_only": True},
+            "last_login": {"read_only": True},
+            "verified": {"read_only": True},
+        }
+
+
+class UpdateUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = [
+            "firstname",
+            "lastname",
+            "roles",
+            "image",
+            "verified"
+        ]
+        extra_kwargs = {
+            "last_login": {"read_only": True},
+            "verified": {"read_only": True},
+
+        }
+
+    def validate(self, attrs):
+        new_role = attrs.get('roles')
+        auth_user: User = self.context['request'].user
+        if "SUPER_ADMIN" not in auth_user.roles and 'SCHOOL_ADMIN' in new_role or 'SUPER_ADMIN' in new_role:
+            raise serializers.ValidationError({"role":"Your selection should be TEACHER or STUDENT"})
+        # elif "SUPER_ADMIN" not in auth_user.roles and 'SCHOOL_ADMIN' in new_role:
+        #     raise serializers.ValidationError({"role":"Your selection should be TEACHER or STUDENT"})
+        return super().validate(attrs)
+
+
 class BasicUserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
@@ -109,6 +148,7 @@ class BasicUserInfoSerializer(serializers.ModelSerializer):
             "lastname",
             "email",
         ]
+
 
 class CreateUserSerializer(serializers.ModelSerializer):
     """Serializer for creating user object"""
@@ -129,19 +169,20 @@ class CreateUserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "password": {"write_only": True, "min_length": 5},
             "last_login": {"read_only": True},
-            "verified":{"read_only": True},
+            "verified": {"read_only": True},
             "firstname": {"required": True},
             "lastname": {"required": True},
-            "roles":{"required": True},
+            "roles": {"required": True},
         }
 
-    def validate_roles(self, roles : list) -> None:
-        allowable_roles : list[str]= ["STUDENT", "TEACHER"]
-        valid : bool = all(role in allowable_roles for role in roles)
+    def validate_roles(self, roles: list) -> None:
+        allowable_roles: list[str] = ["STUDENT", "TEACHER"]
+        valid: bool = all(role in allowable_roles for role in roles)
         if not valid:
-            raise serializers.ValidationError("Roles can only be STUDENT or TEACHER")
+            raise serializers.ValidationError(
+                "Roles can only be STUDENT or TEACHER")
         return roles
-    
+
     def validate(self, attrs):
         email = attrs.get("email", None)
         if email:
@@ -155,7 +196,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
         validated_data["password"] = make_password(validated_data["password"])
         #print("validated", validated_data)
         user = User.objects.create_app_user(**validated_data)
-        return user 
+        return user
 
     def update(self, instance, validated_data):
         instance = super().update(instance, validated_data)

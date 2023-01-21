@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from user.models import Token, User
 from user.enums import TokenTypeClass
-
+from .conftest import api_client_with_credentials
 
 pytestmark = pytest.mark.django_db
 
@@ -94,4 +94,120 @@ class TestUserRegistration:
         data = {"email":active_user.email}
         response =  api_client.post(self.reinvite_user_url, data)
         assert response.status_code == 400
+
+class TestRetriveUsers:
+    user_list_url = reverse("user:user-list")
+    @pytest.mark.parametrize(
+        'user_role',
+        [["SCHOOL_ADMIN"],["SUPER_ADMIN"],["SCHOOL_ADMIN", "SUPER_ADMIN"]]
+    )
+    def test_admin_retrieve_users(self, user_role, api_client, user_factory, authenticate_user):
+        """Admin retrieves all users on the platform"""
+        user_factory.create_batch(3)
+        user = authenticate_user(roles=user_role)
+        token = user['token']
+        api_client_with_credentials(token, api_client)
+        response = api_client.get(self.user_list_url)
+        assert response.status_code == 200
+        assert response.json()['total'] == 4
+    
+    @pytest.mark.parametrize(
+        'user_role',
+        [["TEACHER"],["STUDENT"]]
+    )
+    def test_non_admin_retrieves_user(self, api_client, user_role, user_factory, authenticate_user):
+        """Non Admin(i.e. Student/Teacher retrieves only their data)"""
+        user_factory.create_batch(3)
+        user = authenticate_user(roles = user_role)
+        token = user['token']
+        api_client_with_credentials(token, api_client)
+        response = api_client.get(self.user_list_url)
+        assert response.status_code == 200
+        assert response.json()['total'] == 1
         
+    def test_retrieve_user_details(self, api_client, user_factory, authenticate_user):
+        user = user_factory()
+        auth_user = authenticate_user(roles = ["SUPER_ADMIN"])
+        url = reverse("user:user-detail", kwargs={"pk": user.id})
+        api_client_with_credentials(auth_user["token"], api_client)
+        response = api_client.get(url)
+        assert response.status_code == 200
+        assert response.json()['email'] == user.email
+    
+    @pytest.mark.parametrize(
+        'user_role',
+        [["TEACHER"],["STUDENT"]]
+    ) 
+    def test_deny_retrieve_someone_else_details(self, user_role,api_client, user_factory, authenticate_user):
+        """Teacher/Student can only retrieve ther data"""
+        user = user_factory()
+        auth_user = authenticate_user(roles = user_role)
+        url = reverse("user:user-detail", kwargs={"pk": user.id})
+        api_client_with_credentials(auth_user["token"], api_client)
+        response = api_client.get(url)
+        assert response.status_code == 400
+    
+    def test_deny_user_retrieval_to_unauth_user(self, api_client):
+        response = api_client.get(self.user_list_url)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestUpdateDeleteUsers:
+    def test_admin_update_user_details(self,api_client, user_factory, authenticate_user):
+        user = user_factory(firstname="Namer")
+        auth_user = authenticate_user(roles = ["SUPER_ADMIN"])
+        url = reverse("user:user-detail", kwargs={"pk": user.id})
+        api_client_with_credentials(auth_user["token"], api_client)
+        data= {"roles":["SCHOOL_ADMIN","STUDENT"],"firstname":"New name"}
+        response = api_client.patch(url, data)
+        assert response.status_code == 200
+        response_data = response.json()
+        assert data['roles'] == response_data['roles']
+        assert data['firstname'] == response_data['firstname']
+    
+    @pytest.mark.parametrize(
+        'user_role',
+        [["TEACHER"],["STUDENT"]]
+    ) 
+    def test_non_admin_cannot_assign_admin_permission(self,api_client,user_role, authenticate_user):
+        auth_user = authenticate_user(roles = user_role)
+        url = reverse("user:user-detail", kwargs={"pk": auth_user['user_instance'].id})
+        api_client_with_credentials(auth_user["token"], api_client)
+        data= {"roles":["SCHOOL_ADMIN","SUPER_ADMIN"]}
+        response = api_client.patch(url, data)
+        print(response.json())
+        assert response.status_code == 400
+    
+    @pytest.mark.parametrize(
+        'user_role',
+        [["TEACHER"],["STUDENT"]]
+    )     
+    def test_non_admin_update_personal_info(self,api_client,user_role, authenticate_user):
+        auth_user = authenticate_user(roles = user_role)
+        url = reverse("user:user-detail", kwargs={"pk": auth_user['user_instance'].id})
+        api_client_with_credentials(auth_user["token"], api_client)
+        data= {"roles":["TEACHER"], "firstname":"New"}
+        response = api_client.patch(url, data)
+        assert response.status_code == 200
+        assert response.json()['firstname'] =="New"
+    
+    def test_superadmin_delete_user_account(self,api_client,user_factory, authenticate_user):
+        user = user_factory()
+        auth_user = authenticate_user(roles = ["SUPER_ADMIN"])
+        url = reverse("user:user-detail", kwargs={"pk": user.id})
+        api_client_with_credentials(auth_user["token"], api_client)
+        response = api_client.delete(url)
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+    
+    @pytest.mark.parametrize(
+        'user_role',
+        [["TEACHER"],["STUDENT"]]
+    )   
+    def test_deny_delete_user_account(self,api_client,user_role,user_factory, authenticate_user):
+        """Only super admin can delete a user on the system;"""
+        auth_user = authenticate_user(roles = user_role)
+        url = reverse("user:user-detail", kwargs={"pk": auth_user['user_instance'].id})
+        api_client_with_credentials(auth_user["token"], api_client)
+        response = api_client.delete(url)
+        print(response.json())
+        assert response.status_code == status.HTTP_403_FORBIDDEN
