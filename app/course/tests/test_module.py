@@ -145,4 +145,6 @@ class TestUpdateModule:
         assert Module.objects.get(completed_by = user['user_instance'])
     
     
-    #TODO: Module Assignment Test       
+#TODO: Submit Module Assignment Test      
+#TODO: Module Assignment Test  
+#TODO: Quiz Test  
