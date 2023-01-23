@@ -136,10 +136,10 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
         '''Returns all enrolled students'''
         return super().list(request, *args, **kwargs)
 
-    # @extend_schema(exclude=True)
-    # def retrieve(self, request, *args, **kwargs):
-    #     '''A unique identifier for this enrolled student'''
-    #     return super().retrieve(request, *args, **kwargs)
+    @extend_schema(exclude=True)
+    def retrieve(self, request, *args, **kwargs):
+        '''A unique identifier for this enrolled student'''
+        return super().retrieve(request, *args, **kwargs)
 
     @action(
         detail=False,
@@ -163,7 +163,7 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
 class ModuleViewSets(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Module.objects.all().select_related('course')
-    http_method_names = ["post", "put", "delete"]
+    http_method_names = ["post", "put","patch", "delete"]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -181,13 +181,13 @@ class ModuleViewSets(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def get_serializer_class(self):
-        if self.action in ["create", "update"]:
+        if self.action in ["create", "update","partial_update"]:
             return CreateModuleSerializer
         return self.serializer_class
 
     def create(self, request, **kwargs):
         '''Create a new module for a course'''
-        serializer = self.get_serializer_class(
+        serializer = CreateModuleSerializer(
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)

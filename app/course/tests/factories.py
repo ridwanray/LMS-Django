@@ -20,7 +20,6 @@ class CourseFactory(factory.django.DjangoModelFactory):
         if not create:
             return
         if extracted:
-            print("extracted",extracted)
             for each in extracted:
                 self.teachers.add(each)
     
@@ -34,7 +33,7 @@ class ModuleFactory(factory.django.DjangoModelFactory):
         model = Module
     module_name = fake.name()
     video_link =  fake.url()
-    text_cotent =  fake.text()
+    text_content =  fake.text()
     topic = fake.name()
     module_order = factory.Sequence(lambda n: n)
 

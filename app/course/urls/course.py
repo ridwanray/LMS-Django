@@ -11,5 +11,3 @@ router.register("transaction", TransactionViewSets)
 urlpatterns = [
     path("", include(router.urls)),
 ]
-
-print(router.urls)
