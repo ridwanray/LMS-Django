@@ -102,7 +102,7 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
     queryset = EnrollStudent.objects.all().select_related("user", "course")
     serializer_class = EnrollStudentSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", ]
+    http_method_names = ["get"]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -124,10 +124,10 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
 
     def get_permissions(self):
         permission_classes = self.permission_classes
-        if self.action in "create":
+        if self.action == "create":
             permission_classes = [IsStudent]
         elif self.action in ["list", "retrieve"]:
-            permission_classes = [IsTeacher, IsSchoolAdmin, IsStudent]
+            permission_classes = [AllowAny]
         elif self.action in ["destroy"]:
             permission_classes = [IsSuperAdmin]
         return [permission() for permission in permission_classes]
@@ -136,10 +136,10 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
         '''Returns all enrolled students'''
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(exclude=True)
-    def retrieve(self, request, *args, **kwargs):
-        '''A unique identifier for this enrolled student'''
-        return super().retrieve(request, *args, **kwargs)
+    # @extend_schema(exclude=True)
+    # def retrieve(self, request, *args, **kwargs):
+    #     '''A unique identifier for this enrolled student'''
+    #     return super().retrieve(request, *args, **kwargs)
 
     @action(
         detail=False,
@@ -151,7 +151,8 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
     def get_enrolled_students(self, request, course_id, pk=None):
         '''Returns all students enrolled for this course'''
         auth_user = self.request.user
-        course_instance = get_object_or_404(Course, course_id)
+        course_instance = get_object_or_404(Course, id =course_id)
+
         if not is_admin(auth_user) and not is_course_teacher(auth_user, course_instance):
             return Response({"success": False, "message": "You cannot retrieve students for a course you are don't teach"}, 400)
         students: User = course_instance.enrolled_students

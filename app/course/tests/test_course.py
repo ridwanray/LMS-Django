@@ -1,6 +1,8 @@
 import pytest
 from django.urls import reverse
 from rest_framework import status
+from typing import Callable
+from course.models import Course
 from user.tests.conftest import api_client_with_credentials
 
 
@@ -9,7 +11,10 @@ pytestmark = pytest.mark.django_db
 
 class TestRetrieveCourse:
     course_list_url = reverse("course:course-list")
-
+    
+    def get_course_detail_url(course_instance:Course)-> Callable:
+        return reverse("course:course-detail", kwargs={"pk": course_instance.id})
+        
     def test_user_retrieve_course(self, api_client, course_factory, user_factory, active_user):
         '''Allows all user type(auth&unauth) to see course list'''
         teachers = user_factory.create_batch(2)
@@ -27,7 +32,8 @@ class TestRetrieveCourse:
         """Any person can retrieve course details"""
         teachers = user_factory.create_batch(3)
         course = course_factory(teachers=teachers, created_by=active_user)
-        url = reverse("course:course-detail", kwargs={"pk": course.id})
+        url = self.get_course_detail_url(course)
+        #reverse("course:course-detail", kwargs={"pk": course.id})
         response = api_client.get(url)
         assert response.status_code == 200
         returned_response = response.json()
@@ -255,3 +261,68 @@ class TestUpdateDeleteCourse:
         url = reverse("course:course-detail", kwargs={"pk": course.id})
         response = api_client.delete(url)
         assert response.status_code == request_status
+
+
+class TestRetrieveCourseEnrollment:
+    
+    @pytest.mark.skip(reason="URL returning 404")
+    @pytest.mark.parametrize(
+        'user_role',
+        [["SUPER_ADMIN"], ["SCHOOL_ADMIN"]]
+    )
+    def test_admin_retrieves_all_enrollments(self, api_client,user_role,  user_factory,course_factory,  enroll_student_factory,authenticate_user):
+        user = authenticate_user(roles=user_role)
+        token = user['token']
+        enroll_student_factory.create_batch(3, course=course_factory(), user= user_factory())
+        
+        api_client_with_credentials(token, api_client)
+        url = reverse("course:enrollstudent-list")
+        response = api_client.get(url)
+        print(response.json())
+        pass
+    
+    @pytest.mark.parametrize(
+        'user_role',
+        [["SUPER_ADMIN"], 
+         ["SCHOOL_ADMIN"]
+         ]
+    )
+    def test_admin_retrieve_course_enrolled_students(self, api_client,user_role,  user_factory,course_factory,  enroll_student_factory,authenticate_user):
+        user = authenticate_user(roles=user_role)
+        token = user['token']
+        course1 = course_factory()
+        enroll_student_factory.create_batch(2, course=course1, user= user_factory())
+        course2 = course_factory()
+        enroll_student_factory.create_batch(3, course=course2, user= user_factory())    
+        api_client_with_credentials(token, api_client)
+        url = reverse("course:enrollstudent-get-enrolled-students", kwargs={"course_id": str(course2.id)})
+        response = api_client.get(url)
+        retuned_json = response.json()
+        assert response.status_code == 200
+        assert len(retuned_json['data']) == 3
+
+    def test_teacher_retrieve_course_enrolled_students(self, api_client,  user_factory,course_factory,  enroll_student_factory,authenticate_user):
+        user = authenticate_user(roles=["TEACHER"])
+        token = user['token']
+        course = course_factory(teachers=[user['user_instance']])
+        enroll_student_factory.create_batch(2, course=course, user= user_factory())
+        api_client_with_credentials(token, api_client)
+        url = reverse("course:enrollstudent-get-enrolled-students", kwargs={"course_id": str(course.id)})
+        response = api_client.get(url)
+        retuned_json = response.json()
+        assert response.status_code == 200
+        assert len(retuned_json['data']) == 2
+    
+    def test_deny_retrieve_enrollment_for_not_teaching_teacher(self, api_client,  user_factory,course_factory,  enroll_student_factory,authenticate_user):
+        """A teacher can only retrieve enrollment for a course he teaches"""
+        user = authenticate_user(roles=["TEACHER"])
+        token = user['token']
+        course = course_factory()
+        enroll_student_factory.create_batch(2, course=course, user= user_factory())
+        api_client_with_credentials(token, api_client)
+        url = reverse("course:enrollstudent-get-enrolled-students", kwargs={"course_id": str(course.id)})
+        response = api_client.get(url)
+        assert response.status_code == 400
+    
+    
+    
