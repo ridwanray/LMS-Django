@@ -5,9 +5,11 @@ from ..views import CourseViewSets, EnrollStudentViewSets,TransactionViewSets
 app_name = "course"
 router = DefaultRouter()
 router.register("", CourseViewSets)
-router.register("students", EnrollStudentViewSets)
+router.register("enrollment", EnrollStudentViewSets)
 router.register("transaction", TransactionViewSets)
 
 urlpatterns = [
     path("", include(router.urls)),
 ]
+
+print(router.urls)

@@ -5,29 +5,37 @@ from user.models import User
 from core.utils.validators import is_admin, is_course_teacher
 
 class CourseSerializer(serializers.ModelSerializer):
-
+    created_by = BasicUserInfoSerializer(read_only=True)
+    teachers = BasicUserInfoSerializer(many=True, required=False)
     class Meta:
         model = Course
-        exclude = ("approved_by",)
+        exclude = ("approved_by","updated_at")
         
         extra_kwargs = {
             "created_by": {"read_only": True},
             "is_active": {"read_only": True},
         }
         
-    def validate(self, attrs):
-        user: User = self.context["request"].user
-        if self.instance:
-            if not is_admin(user) and user not in self.instance.teachers:
-                raise serializers.ValidationError({"course":"You can only edit a course you teach."})
-        return super().validate(attrs)
-
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data['teachers'] = BasicUserInfoSerializer(
-            instance=instance.teachers, many=True).data
         return data
 
+
+class CourseUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = '__all__'
+        extra_kwargs = {
+            "created_by": {"read_only": True},
+            "teachers":{"required":False}
+        }
+        
+    def validate(self, attrs): 
+        user: User = self.context["request"].user
+        if self.instance:
+            if not is_admin(user) and user not in self.instance.teachers.all():
+                raise serializers.ValidationError({"course":"You can only edit a course you teach."})
+        return super().validate(attrs)
 
 
 class EnrollStudentSerializer(serializers.ModelSerializer):
@@ -61,7 +69,7 @@ class CreateModuleSerializer(serializers.ModelSerializer):
 class ModuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Module
-        fields = '__all__'
+        exclude = ('completed_by',)
         
 
 class BasicModuleSerializer(serializers.ModelSerializer):

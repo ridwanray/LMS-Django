@@ -7,9 +7,12 @@ from pytest_factoryboy import register
 from user.tests.factories import (
     UserFactory, TokenFactory
 )
+from course.tests.factories import ModuleFactory,EnrollStudentFactory
 
 register(UserFactory)
 register(TokenFactory)
+register(ModuleFactory)
+register(EnrollStudentFactory)
 
 @pytest.fixture
 def api_client():
@@ -26,6 +29,7 @@ def inactive_user(db, user_factory):
 
 @pytest.fixture
 def authenticate_user(api_client, active_user):
+    #TODO: Thought of mocking this auth endpoint
     """Return token needed for authentication"""
     def _user(roles:List[str], verified=True, is_active = True):
         active_user.verified = verified

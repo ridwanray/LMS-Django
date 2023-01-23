@@ -23,6 +23,10 @@ class Course(AuditableModel):
         return self.students_enrolled.count()
     
     @property
+    def total_modules(self):
+        return self.modules.count()
+    
+    @property
     def total_teachers(self):
         return self.teachers.count()
 
@@ -43,7 +47,7 @@ class Module(AuditableModel):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='modules')
     module_name = models.CharField(max_length=40, blank=True, null=True)
     video_link= models.CharField(max_length=250, blank=True, null=True)
-    module_order = models.PositiveIntegerField()
+    module_order = models.PositiveIntegerField(blank=True, null=True)
     topic=models.CharField(max_length=30, blank=True, null=True)
     text_cotent= models.TextField(blank=True, null=True)
     practical_work_sheet = ArrayFileField(models.FileField(upload_to="practical_work_sheet/", null=True, blank=True), null=True)

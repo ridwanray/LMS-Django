@@ -1,6 +1,6 @@
 from typing import List
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
+from django.db.models import Exists, Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import viewsets, filters, status
@@ -16,11 +16,11 @@ from user.permissions import IsSuperAdmin, IsTeacher, IsStudent, IsSchoolAdmin
 from .models import Course, EnrollStudent, Module
 from .serializers import (BulkUpdateMarkAsCompletedSerializer, CourseSerializer, EnrollStudentSerializer,
                           ModuleAssignmentSerializer, ModuleSerializer, TransactionSerializer,
-                          CreateModuleSerializer, BasicModuleSerializer)
+                          CreateModuleSerializer, BasicModuleSerializer,CourseUpdateSerializer)
 
 
 class CourseViewSets(viewsets.ModelViewSet):
-    queryset = Course.objects.all().prefetch_related("teachers")
+    queryset = Course.objects.all().prefetch_related("teachers").select_related("created_by")
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "patch", "delete", "put"]
@@ -49,6 +49,11 @@ class CourseViewSets(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+    
+    def get_serializer_class(self):
+        if self.action in ["partial_update", "update"]:
+            return CourseUpdateSerializer
+        return self.serializer_class
 
     def get_permissions(self):
         permission_classes = self.permission_classes
@@ -64,7 +69,7 @@ class CourseViewSets(viewsets.ModelViewSet):
         """This endpoint updates a course"""
         partial = kwargs.pop("partial", False)
         course_instance:  Course = self.get_object()
-        serializer = self.get_serializer(
+        serializer = CourseUpdateSerializer(
             data=request.data, instance=course_instance, partial=partial,
             context={"request": request})
         serializer.is_valid(raise_exception=True)
@@ -83,8 +88,10 @@ class CourseViewSets(viewsets.ModelViewSet):
         user = self.request.user
         course_instance: Course = self.get_object()
         modules: List(Module) = course_instance.modules
+        enrolled_students_qs = course_instance.enrolled_students.all()
+        is_enrolled_student =enrolled_students_qs.filter(user=user).exists()
         serializer_class_ = ModuleSerializer if is_admin(
-            user) or user in course_instance.students_enrolled else BasicModuleSerializer
+            user) or is_enrolled_student or user in course_instance.teachers.all() else BasicModuleSerializer
         data = serializer_class_(
             instance=modules, context={"request": request}, many=True
         ).data
@@ -95,7 +102,7 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
     queryset = EnrollStudent.objects.all().select_related("user", "course")
     serializer_class = EnrollStudentSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", ]
+    http_method_names = ["get"]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -117,10 +124,10 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
 
     def get_permissions(self):
         permission_classes = self.permission_classes
-        if self.action in "create":
+        if self.action == "create":
             permission_classes = [IsStudent]
         elif self.action in ["list", "retrieve"]:
-            permission_classes = [IsTeacher, IsSchoolAdmin, IsStudent]
+            permission_classes = [AllowAny]
         elif self.action in ["destroy"]:
             permission_classes = [IsSuperAdmin]
         return [permission() for permission in permission_classes]
@@ -129,10 +136,10 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
         '''Returns all enrolled students'''
         return super().list(request, *args, **kwargs)
 
-    @extend_schema(exclude=True)
-    def retrieve(self, request, *args, **kwargs):
-        '''A unique identifier for this enrolled student'''
-        return super().retrieve(request, *args, **kwargs)
+    # @extend_schema(exclude=True)
+    # def retrieve(self, request, *args, **kwargs):
+    #     '''A unique identifier for this enrolled student'''
+    #     return super().retrieve(request, *args, **kwargs)
 
     @action(
         detail=False,
@@ -144,7 +151,8 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
     def get_enrolled_students(self, request, course_id, pk=None):
         '''Returns all students enrolled for this course'''
         auth_user = self.request.user
-        course_instance = get_object_or_404(Course, course_id)
+        course_instance = get_object_or_404(Course, id =course_id)
+
         if not is_admin(auth_user) and not is_course_teacher(auth_user, course_instance):
             return Response({"success": False, "message": "You cannot retrieve students for a course you are don't teach"}, 400)
         students: User = course_instance.enrolled_students
