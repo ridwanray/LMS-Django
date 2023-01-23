@@ -136,10 +136,10 @@ class EnrollStudentViewSets(viewsets.ModelViewSet):
         '''Returns all enrolled students'''
         return super().list(request, *args, **kwargs)
 
-    # @extend_schema(exclude=True)
-    # def retrieve(self, request, *args, **kwargs):
-    #     '''A unique identifier for this enrolled student'''
-    #     return super().retrieve(request, *args, **kwargs)
+    @extend_schema(exclude=True)
+    def retrieve(self, request, *args, **kwargs):
+        '''A unique identifier for this enrolled student'''
+        return super().retrieve(request, *args, **kwargs)
 
     @action(
         detail=False,
