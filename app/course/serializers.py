@@ -50,19 +50,18 @@ class EnrollStudentSerializer(serializers.ModelSerializer):
 class CreateModuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Module
-        fields = '__all__'
+        exclude = ("completed_by",)
 
         extra_kwargs = {
             "created_by": {"read_only": True},
-            "completed_by": {"read_only": True},
         }
 
     def validate(self, attrs):
         user: User = self.context["request"].user
-        course: Course = attrs.get("course")
-        if not is_course_teacher(user,course):
+        course: Course = self.instance.course  if self.instance else  attrs.get("course")
+        if not is_admin(user) and not is_course_teacher(user,course):
             raise serializers.ValidationError(
-                {'course': 'You can only create a module for a course you teach.'})
+                {'course': 'You can only create/edit a module for a course you teach.'})
         return super().validate(attrs)
 
 
@@ -94,13 +93,13 @@ class BulkUpdateMarkAsCompletedSerializer(serializers.Serializer):
         queryset=Module.objects.all(), many=True, write_only= True)
     is_completed = serializers.BooleanField(required=True)
     
-    def update(self, validated_data):
+    def create(self, validated_data):
         user = self.context["request"].user
         for module in validated_data["modules"]:
             module.completed_by.add(user) if validated_data[
-                "is_read"
+                "is_completed"
             ] else module.completed_by.remove(user)
-        _returned = {"is_read": validated_data["is_read"]}
+        _returned = {"is_completed": validated_data["is_completed"]}
         return _returned
 
 class TransactionSerializer(serializers.ModelSerializer):

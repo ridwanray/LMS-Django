@@ -49,7 +49,7 @@ class Module(AuditableModel):
     video_link= models.CharField(max_length=250, blank=True, null=True)
     module_order = models.PositiveIntegerField(blank=True, null=True)
     topic=models.CharField(max_length=30, blank=True, null=True)
-    text_cotent= models.TextField(blank=True, null=True)
+    text_content= models.TextField(blank=True, null=True)
     practical_work_sheet = ArrayFileField(models.FileField(upload_to="practical_work_sheet/", null=True, blank=True), null=True)
     created_by = models.ForeignKey('user.User', on_delete=models.SET_NULL, related_name='modules_created', blank=True, null=True)
     completed_by = models.ManyToManyField("user.User", related_name="completed_modules", blank=True)
