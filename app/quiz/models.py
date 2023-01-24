@@ -10,7 +10,8 @@ class Quiz(AuditableModel):
     class Meta:
         verbose_name_plural = "Quizzes"
         ordering = ['id','module']
-        
+    
+    @property    
     def question_count(self)->int:
         return self.questions.count()
     

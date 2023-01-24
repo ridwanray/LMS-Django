@@ -1,6 +1,7 @@
 from typing import Dict, List
 from rest_framework import serializers
 from django.db import transaction
+from user.serializers import BasicUserInfoSerializer
 from core.utils.validators import is_admin
 from course.serializers import CourseSerializer
 from course.models import Module
@@ -42,6 +43,8 @@ class QuizCreateSerializer(serializers.Serializer):
     module = serializers.PrimaryKeyRelatedField(
         queryset=Module.objects.all(), required=True
     )
+    created_by = BasicUserInfoSerializer(read_only=True)
+
 
     def validate(self, attrs):
         user: User = self.context["request"].user
@@ -68,6 +71,20 @@ class QuizUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "created_by": {"read_only": True}
         }
+    
+    
+    def validate(self, attrs):
+        user: User = self.context["request"].user
+        module: Module = self.instance.module
+        teachers = module.course.teachers.all()
+        if user not in teachers and not is_admin(user):
+            raise serializers.ValidationError(
+                {"module": "You can only create/edite/delete a quiz for a course you teach."})
+        return super().validate(attrs)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        return data
 
 
 class QuizSerializer(serializers.ModelSerializer):
@@ -114,7 +131,7 @@ class CreatModuleQuizQuestionSerializer(serializers.Serializer):
     def validate(self, attrs):
         user: User = self.context["request"].user
         module: Module = self.context.get('module')
-        if module.quiz is None:
+        if module.module_quiz is None:
             raise serializers.ValidationError(
                 {"module": "No quiz found for this module. Create one to continue"})
         if user not in module.course.teachers.all() and not is_admin(user):
@@ -136,8 +153,8 @@ class CreatModuleQuizQuestionSerializer(serializers.Serializer):
             }
             question_instance = Question.objects.create(**question_data)
             answers = [Answer(question=question_instance,
-                              text=answer['text'], has_audio=answer['has_audip'],
-                              answer_audio_record=answer['answer_audio_record'],
+                              text=answer.get('text', None), has_audio=answer.get('has_audio', False),
+                              answer_audio_record=answer.get('answer_audio_record', False),
                               is_correct=answer.get('is_correct', False)
                               ) for answer in question.get('answers')]
 

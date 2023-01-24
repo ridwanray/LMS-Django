@@ -7,12 +7,14 @@ from pytest_factoryboy import register
 from user.tests.factories import (
     UserFactory, TokenFactory
 )
-from course.tests.factories import ModuleFactory,EnrollStudentFactory
+from course.tests.factories import CourseFactory,ModuleFactory,EnrollStudentFactory
+
 
 register(UserFactory)
 register(TokenFactory)
 register(ModuleFactory)
 register(EnrollStudentFactory)
+register(CourseFactory)
 
 @pytest.fixture
 def api_client():
