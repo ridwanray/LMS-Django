@@ -170,6 +170,89 @@ class TestModuleQuizQuestions:
     def test_admin_set_module_quiz_questions(self, user_role, course_factory, quiz_factory, module_factory, api_client, authenticate_user):
         user = authenticate_user(roles=user_role)
         module = module_factory(course=course_factory())
+        quiz = quiz_factory(module=module, created_by=user['user_instance'])
+        token = user['token']
+        api_client_with_credentials(token, api_client)
+        quiz_data = {
+            "questions": [
+                {
+                    "prompt_question": "What is your name?",
+                    "answers": [
+                        {
+                            "text": "string",
+                            "has_audio": True,
+                            "is_correct": True
+                        },
+                        {
+                            "text": "string",
+                            "has_audio": True,
+                            "is_correct": False
+                        }
+                    ],
+                    "has_audio": True,
+
+                },
+                {
+                    "prompt_question": "What is your age?",
+                    "answers": [
+                        {
+                            "text": "string",
+                            "has_audio": True,
+                            "is_correct": True
+                        },
+                        {
+                            "text": "string",
+                            "has_audio": True,
+                            "is_correct": False
+                        }
+                    ],
+                    "has_audio": True,
+
+                }
+            ]
+        }
+        url = reverse("quiz:quiz-set-module-quiz-questions",
+                      kwargs={"module_id": str(module.id)})
+        response = api_client.post(url, quiz_data)
+        assert response.status_code == 200
+        assert quiz.question_count == 2
+
+    def test_course_teacher_set_module_quiz_questions(self, course_factory, quiz_factory, module_factory, api_client, authenticate_user):
+        user = authenticate_user(roles=["TEACHER"])
+        module = module_factory(course=course_factory(teachers=[user['user_instance']]))
+        quiz = quiz_factory(module=module, created_by=user['user_instance'])
+        token = user['token']
+        api_client_with_credentials(token, api_client)
+        quiz_data = {
+            "questions": [
+                {
+                    "prompt_question": "What is your name?",
+                    "answers": [
+                        {
+                            "text": "string",
+                            "has_audio": True,
+                            "is_correct": True
+                        },
+                        {
+                            "text": "string",
+                            "has_audio": True,
+                            "is_correct": False
+                        }
+                    ],
+                    "has_audio": True,
+
+                }
+            ]
+        }
+        url = reverse("quiz:quiz-set-module-quiz-questions",
+                      kwargs={"module_id": str(module.id)})
+        response = api_client.post(url, quiz_data)
+        assert response.status_code == 200
+        assert quiz.question_count == 1
+    
+    def test_deny_set_module_quiz_questions_to_nonteaching(self, course_factory, quiz_factory, module_factory, api_client, authenticate_user):
+        user = authenticate_user(roles=["TEACHER"])
+        module = module_factory(course=course_factory())
         quiz_factory(module=module, created_by=user['user_instance'])
         token = user['token']
         api_client_with_credentials(token, api_client)
@@ -182,15 +265,20 @@ class TestModuleQuizQuestions:
                             "text": "string",
                             "has_audio": True,
                             "is_correct": True
+                        },
+                        {
+                            "text": "string",
+                            "has_audio": True,
+                            "is_correct": False
                         }
                     ],
                     "has_audio": True,
-                   
+
                 }
             ]
         }
         url = reverse("quiz:quiz-set-module-quiz-questions",
                       kwargs={"module_id": str(module.id)})
-
         response = api_client.post(url, quiz_data)
-        print(response.json())
+        assert response.status_code == 400
+

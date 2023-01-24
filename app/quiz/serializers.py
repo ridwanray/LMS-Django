@@ -153,8 +153,8 @@ class CreatModuleQuizQuestionSerializer(serializers.Serializer):
             }
             question_instance = Question.objects.create(**question_data)
             answers = [Answer(question=question_instance,
-                              text=answer.get('text', None), has_audio=answer.get('has_audio', None),
-                              answer_audio_record=answer.get('answer_audio_record', None),
+                              text=answer.get('text', None), has_audio=answer.get('has_audio', False),
+                              answer_audio_record=answer.get('answer_audio_record', False),
                               is_correct=answer.get('is_correct', False)
                               ) for answer in question.get('answers')]
 
