@@ -32,7 +32,7 @@ class QuizViewSets(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return QuizCreateSerializer
-        elif self.action == "update":
+        elif self.action in ["update", "partial_update"]:
             return QuizUpdateSerializer
         elif self.action == "retrieve":
             return QuizDetailsSerializer
@@ -44,8 +44,8 @@ class QuizViewSets(viewsets.ModelViewSet):
 
     def get_permissions(self):
         permission_classes = self.permission_classes
-        if self.action in ["create", "update", "delete"]:
-            permission_classes = [IsTeacher | IsSuperAdmin]
+        if self.action in ["create", "update", "partial_update","delete"]:
+            permission_classes = [IsTeacher| IsSchoolAdmin | IsSuperAdmin]
         elif self.action in ["list", "retrieve"]:
             permission_classes = [IsTeacher | IsSuperAdmin | IsStudent]
         return [permission() for permission in permission_classes]
@@ -54,7 +54,8 @@ class QuizViewSets(viewsets.ModelViewSet):
         user: User = self.request.user
         if is_admin(user):
             return self.queryset.all()
-        return self.queryset.filter(Q(module__Course__teachers=user) | Q(module__Course__student_enrolled=user))
+        return self.queryset.filter( Q(module__course__teachers=user) | Q(module__course__enrolled_students__user=user))
+    
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
