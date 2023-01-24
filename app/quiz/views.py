@@ -80,7 +80,7 @@ class QuizViewSets(viewsets.ModelViewSet):
     def set_module_quiz_questions(self, request, module_id, pk=None):
         '''Allows a teacher to set module quiz questions'''
         module: Module =  get_object_or_404(Module, id=module_id)
-        serializer =  self.get_serializer_class(
+        serializer =  CreatModuleQuizQuestionSerializer(
             data=request.data, context={
                 "request": request, "module":module})
         serializer.is_valid(raise_exception=True)

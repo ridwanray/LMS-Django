@@ -131,7 +131,7 @@ class CreatModuleQuizQuestionSerializer(serializers.Serializer):
     def validate(self, attrs):
         user: User = self.context["request"].user
         module: Module = self.context.get('module')
-        if module.quiz is None:
+        if module.module_quiz is None:
             raise serializers.ValidationError(
                 {"module": "No quiz found for this module. Create one to continue"})
         if user not in module.course.teachers.all() and not is_admin(user):
@@ -153,8 +153,8 @@ class CreatModuleQuizQuestionSerializer(serializers.Serializer):
             }
             question_instance = Question.objects.create(**question_data)
             answers = [Answer(question=question_instance,
-                              text=answer['text'], has_audio=answer['has_audip'],
-                              answer_audio_record=answer['answer_audio_record'],
+                              text=answer.get('text', None), has_audio=answer.get('has_audio', None),
+                              answer_audio_record=answer.get('answer_audio_record', None),
                               is_correct=answer.get('is_correct', False)
                               ) for answer in question.get('answers')]
 
