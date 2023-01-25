@@ -2,6 +2,7 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 from typing import Callable
+from quiz.tests.factories import AnswerFactory
 from course.models import Course
 from user.tests.conftest import api_client_with_credentials
 
@@ -161,7 +162,7 @@ class TestUpdateDeleteQuiz:
         assert response.status_code == 404
 
 
-class TestModuleQuizQuestions:
+class TestSetModuleQuizQuestions:
 
     @pytest.mark.parametrize(
         'user_role',
@@ -282,3 +283,43 @@ class TestModuleQuizQuestions:
         response = api_client.post(url, quiz_data)
         assert response.status_code == 400
 
+
+class TestAttemptModuleQuizQuestions:
+
+    def test_student_attempt_module_quiz_questions(self,question_factory,enroll_student_factory,course_factory, quiz_factory, module_factory, api_client, authenticate_user):
+        user = authenticate_user(roles=["STUDENT"])
+        course = course_factory()
+        module = module_factory(course=course)
+        enroll_student_factory.create(
+            user=user['user_instance'], course=course)
+        quiz = quiz_factory(module=module, created_by=user['user_instance'])
+        questions = question_factory.create_batch(5, quiz=quiz)
+        answer = AnswerFactory(question = questions[0])
+        print("all quest", questions)
+        token = user['token']
+        api_client_with_credentials(token, api_client)
+        
+        submission_attempt = {
+            "submissions": [
+                {
+                    "question": str(questions[0].id),
+                    "answer": str(answer.id)
+                },
+                {
+                    "question": str(questions[1].id),
+                    "answer": str(answer.id)
+                },
+                {
+                    "question": str(questions[2].id),
+                    "answer": str(answer.id)
+                },
+
+
+            ]
+        }
+
+
+        url = reverse("quiz:quiz-attempt-module-quiz",
+                      kwargs={"module_id": str(module.id)})
+        response = api_client.post(url, submission_attempt)
+        print(response.json())

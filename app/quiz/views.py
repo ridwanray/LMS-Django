@@ -96,9 +96,9 @@ class QuizViewSets(viewsets.ModelViewSet):
     def attempt_module_quiz(self, request, module_id, pk=None):
         '''Allows a student to participate in a quiz'''
         module: Module =  get_object_or_404(Module, id=module_id)
-        serializer =  self.get_serializer_class(
+        serializer =  AttemptQuizSerializer(
             data=request.data, context={
                 "request": request, "module":module})
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"success": True, "message": "Successfully set module questions"}, status=200)
+        return Response({"success": True, "data": serializer.data}, status=200)

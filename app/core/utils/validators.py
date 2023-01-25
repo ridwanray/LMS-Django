@@ -21,6 +21,7 @@ def is_course_teacher(user: User, course:Course)->bool:
     return False
  
 def is_course_student(user: User, module: Module)->bool:
-    if user not in module.course.students_enrolled:
+    enrolled_students_qs = module.course.enrolled_students.all()
+    if not enrolled_students_qs.filter(user=user).exists():
             raise serializers.ValidationError({"module": "You are not enrolled for this course."})
     return True

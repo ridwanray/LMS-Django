@@ -19,12 +19,19 @@ class QuestionFactory(factory.django.DjangoModelFactory):
 
     prompt_question = fake.name()
     
+    @factory.post_generation
+    def anwers(obj, create, extracted, **kwargs):
+        if not create:
+            return
+        AnswerFactory.create_batch(3,question = obj, is_correct=False)
+    
 
 class AnswerFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Answer
 
     text = fake.name()
+    is_correct = 'False'
 
 
 class TakenQuizFactory(factory.django.DjangoModelFactory):
