@@ -172,7 +172,7 @@ class BaseQuizAttemptSerializer(serializers.Serializer):
 
 
 class AttemptQuizSerializer(serializers.Serializer):
-    submissions = BaseQuizAttemptSerializer(many=True, required=True)
+    submissions = BaseQuizAttemptSerializer(many=True, required=True, write_only=True)
 
     def validate(self, attrs):
         user: User = self.context["request"].user
@@ -182,11 +182,19 @@ class AttemptQuizSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"module": "You are taken this quiz before"})
         return super().validate(attrs)
+    
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['result'] = self.custom_result_dict
+        return ret
 
     def create(self, validated_data):
         user: User = self.context["request"].user
         module: Module = self.context.get('module')
-        total_question_count = module.module_quiz.question_count()
+        total_question_count = module.module_quiz.question_count
+        if total_question_count == 0:
+            self.custom_result_dict = {} 
+            return validated_data
         # TODO: check for zero division exception i.e. question count is zero
         score_count = 0
         submissions = validated_data.get('submissions')
@@ -201,7 +209,9 @@ class AttemptQuizSerializer(serializers.Serializer):
         TakenQuiz.objects.create(user=user, quiz=module.module_quiz, score=score_count,
                                  percentage_score=score_percent)
 
-        return {"score": score_count, 
+        data_dict = {"score": score_count, 
                 "score_percent": score_percent, 
                 "total_question": total_question_count
                 }
+        self.custom_result_dict = data_dict
+        return data_dict

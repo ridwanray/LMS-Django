@@ -20,7 +20,7 @@ class Course(AuditableModel):
     
     @property
     def student_enrolled_count(self):
-        return self.students_enrolled.count()
+        return self.enrolled_students.count()
     
     @property
     def total_modules(self):
