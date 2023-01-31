@@ -54,22 +54,6 @@ def authenticate_user(api_client, active_user):
          
     return _user
 
-# @pytest.fixture
-# def authenticate_user(api_client, active_user):
-#     """Return token needed for authentication"""
-#     url = reverse("auth:login")
-#     data = {
-#         "email": active_user.email,
-#         "password": "my@pass@access",
-#     }
-#     response = api_client.post(url, data)
-#     token = response.json()["access"]
-#     return {
-#         "token": token,
-#         "user_email": active_user.email,
-#         "user_instance": active_user,
-#     }
-
 #[*] Fixtures for users with specific permissions/roles
 @pytest.fixture
 def mock_auth_user_with_specific_role(mocker):

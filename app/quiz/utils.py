@@ -1,7 +1,5 @@
 from typing import Dict
-from user.models import User
-from course.models import Module
-from .models import Question, Answer, TakenQuiz
+from .models import Question, Answer
 
 
 def score_test_attempt(questions_count:int, validated_data: Dict):

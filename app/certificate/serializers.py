@@ -45,7 +45,7 @@ class GenerateCertificateSerializer(serializers.Serializer):
         course: Course = validated_data.get("course")
         cert_info : Dict = {
             'user_id':user.id,
-            'user_name':f'{user.firstname}  {user.lastname}',
+            'user_name':f'{user.firstname} {user.lastname}',
             'email':user.email,
             'course_name': course.course_name,
             'course_id': course.id,
@@ -56,7 +56,8 @@ class GenerateCertificateSerializer(serializers.Serializer):
  
 
 class VerifyCertificateResponseSerializer(serializers.ModelSerializer):
-     class Meta:
+    course = serializers.CharField(source="course.course_name")
+    class Meta:
         model = Certificate
         fields = [
             "course",
@@ -64,3 +65,9 @@ class VerifyCertificateResponseSerializer(serializers.ModelSerializer):
             "certificate_id",
             "grade",
         ]
+        
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['user'] = f'{instance.user.firstname} {instance.user.lastname} '
+        return data
+ 
