@@ -67,7 +67,8 @@ class CertificateViewSets(viewsets.ModelViewSet):
     )
     def verify_certificate(self, request, certificate_id, pk=None):
         '''Checks if a certificate is real'''
-        instance = get_object_or_404(Certificate, certificate_id)
+        instance = get_object_or_404(Certificate,certificate_id=certificate_id)
+       
         data =VerifyCertificateResponseSerializer(instance=instance).data
         return Response({"success": True, "data": data}, status.HTTP_200_OK)
    
