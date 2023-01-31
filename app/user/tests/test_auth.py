@@ -167,7 +167,8 @@ class TestAuthSessionSecurity:
     @time_machine.travel(datetime.now() + timedelta(hours=25))
     def test_token_session_expires(self, api_client, authenticate_user):
         """Token expires after TOKEN_LIFESPAN in config:24 hours"""
-        token = authenticate_user['token']
+        user = authenticate_user(roles=["STUDENT"])
+        token = user['token']
         response = api_client.post(self.verity_token_url, {
                                    'token': token}, format='json')
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
