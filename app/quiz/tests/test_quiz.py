@@ -1,7 +1,6 @@
 import pytest
 from django.urls import reverse
 from rest_framework import status
-from typing import Callable
 from quiz.tests.factories import AnswerFactory
 from course.models import Course
 from quiz.models import TakenQuiz
@@ -408,6 +407,7 @@ class TestAttemptModuleQuizQuestions:
         url = reverse("quiz:quiz-attempt-module-quiz",
                       kwargs={"module_id": str(module.id)})
         response = api_client.post(url, submission_attempt)
+        print(response.json())
         assert response.status_code == 200
         assert TakenQuiz.objects.get(user = user['user_instance'], quiz=quiz)
         returned_json =  response.json()['data']['result']
@@ -462,4 +462,8 @@ class TestAttemptModuleQuizQuestions:
         assert response.status_code == 400
     
  
- #TODO: test 
+ 
+ 
+ 
+ 
+ 

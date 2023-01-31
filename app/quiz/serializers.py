@@ -8,6 +8,7 @@ from course.models import Module
 from core.utils.validators import is_course_student
 from user.models import User
 from .models import Quiz, Question, Answer, TakenQuiz
+from .utils import score_test_attempt
 from django.db.models.fields.files import File
 
 
@@ -191,27 +192,15 @@ class AttemptQuizSerializer(serializers.Serializer):
         data['result'] = self.custom_result_dict
         return data
 
-    def create(self, validated_data):
+    def create(self, validated_data):    
         user: User = self.context["request"].user
         module: Module = self.context.get('module')
         total_question_count = module.module_quiz.question_count
-        score_count = 0
-        submissions = validated_data.get('submissions')
-        for submission in submissions:
-            question: Question = submission.get('question')
-            correct_answer: Answer = question.answers.filter(is_correct=True)
-            if correct_answer:
-                if correct_answer[0] == submission.get('answer'):
-                    score_count += 1
+        result : Dict = score_test_attempt(total_question_count,validated_data)
+       
+       
+        TakenQuiz.objects.create(user=user, quiz=module.module_quiz, score=result.get('score'),
+                                 percentage_score=result.get('score_percent'))
 
-        score_percent = (score_count/total_question_count) * 100
-
-        TakenQuiz.objects.create(user=user, quiz=module.module_quiz, score=score_count,
-                                 percentage_score=score_percent)
-
-        data_dict = {"score": score_count, 
-                "score_percent": score_percent, 
-                "total_question": total_question_count
-                }
-        self.custom_result_dict = data_dict
-        return data_dict
+        self.custom_result_dict = result
+        return validated_data
