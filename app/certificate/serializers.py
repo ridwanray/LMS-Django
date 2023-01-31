@@ -45,7 +45,7 @@ class GenerateCertificateSerializer(serializers.Serializer):
         course: Course = validated_data.get("course")
         cert_info : Dict = {
             'user_id':user.id,
-            'user_name':f'{user.firstname}  {user.lastname}',
+            'user_name':f'{user.firstname} {user.lastname}',
             'email':user.email,
             'course_name': course.course_name,
             'course_id': course.id,

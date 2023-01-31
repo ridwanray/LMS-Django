@@ -12,8 +12,9 @@ from .enums import CERTIFICATE_PREFIX
 
 def validate_certificate_generation(user: User, attrs: Dict) -> None:
     course = attrs.get("course")
-    enrolled_students: List(EnrollStudent) = course.enrolled_students
-    if user not in enrolled_students:
+    enrolled_students_qs: List(EnrollStudent) = course.enrolled_students.all()
+    is_enrolled = enrolled_students_qs.filter(user = user).exists()
+    if not is_enrolled:
         raise serializers.ValidationError(
             {"course": "Enroll for course to generate certificate."})
     if Certificate.objects.filter(course=course, user=user).exists():

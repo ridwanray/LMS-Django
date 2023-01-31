@@ -41,7 +41,7 @@ class CertificateViewSets(viewsets.ModelViewSet):
         if self.action == "verify_certificate":
             permission_classes = [AllowAny]
         if self.action == "create":
-            permission_classes = [IsStudent]
+            permission_classes = [IsStudent | IsTeacher]
         return [permission() for permission in permission_classes]
     
     def get_serializer_class(self):
