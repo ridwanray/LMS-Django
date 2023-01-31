@@ -88,7 +88,7 @@ class QuizUpdateSerializer(serializers.ModelSerializer):
 
 
 class QuizSerializer(serializers.ModelSerializer):
-    course = serializers.ReadOnlyField(source='module.course')
+    course = serializers.ReadOnlyField(source='module.course.course_name')
 
     class Meta:
         fields = [
@@ -180,29 +180,29 @@ class AttemptQuizSerializer(serializers.Serializer):
         is_course_student(user, module)
         if TakenQuiz.objects.filter(user=user, quiz__module=module).exists():
             raise serializers.ValidationError(
-                {"module": "You are taken this quiz before"})
+                {"module": "You have taken this quiz before"})
+        if module.module_quiz.question_count == 0:
+            raise serializers.ValidationError(
+                {"module": "Quiz question not yet set!"})
         return super().validate(attrs)
     
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        ret['result'] = self.custom_result_dict
-        return ret
+        data = super().to_representation(instance)
+        data['result'] = self.custom_result_dict
+        return data
 
     def create(self, validated_data):
         user: User = self.context["request"].user
         module: Module = self.context.get('module')
         total_question_count = module.module_quiz.question_count
-        if total_question_count == 0:
-            self.custom_result_dict = {} 
-            return validated_data
-        # TODO: check for zero division exception i.e. question count is zero
         score_count = 0
         submissions = validated_data.get('submissions')
         for submission in submissions:
             question: Question = submission.get('question')
             correct_answer: Answer = question.answers.filter(is_correct=True)
-            if correct_answer == submission.get('answer'):
-                score_count += 1
+            if correct_answer:
+                if correct_answer[0] == submission.get('answer'):
+                    score_count += 1
 
         score_percent = (score_count/total_question_count) * 100
 

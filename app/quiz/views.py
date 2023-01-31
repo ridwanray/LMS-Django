@@ -47,7 +47,7 @@ class QuizViewSets(viewsets.ModelViewSet):
         if self.action in ["create", "update", "partial_update","delete"]:
             permission_classes = [IsTeacher| IsSchoolAdmin | IsSuperAdmin]
         elif self.action in ["list", "retrieve"]:
-            permission_classes = [IsTeacher | IsSuperAdmin | IsStudent]
+            permission_classes = [IsTeacher | IsSuperAdmin | IsSchoolAdmin | IsStudent]
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
