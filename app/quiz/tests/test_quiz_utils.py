@@ -3,10 +3,6 @@ from quiz.utils import score_test_attempt
 
 pytestmark = pytest.mark.django_db
 
- 
- #set 4 questions
- #provide correct an
-
 def test_score_quiz_attempt(question_factory, answer_factory, quiz_factory, user_factory):
     quiz = quiz_factory(created_by = user_factory())
     
